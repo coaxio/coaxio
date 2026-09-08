@@ -1,0 +1,40 @@
+name: Update stat cards
+
+on:
+  schedule:
+    # Weekly: the graph window shifts daily, so a daily run would commit
+    # a new SVG every single day for no real gain.
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+jobs:
+  cards:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Generate stats card
+        uses: stats-organization/github-readme-stats-action@v2
+        with:
+          card: stats
+          options: username=${{ github.repository_owner }}&show_icons=true&rank_icon=github&include_all_commits=true&hide_border=true&bg_color=07222A&title_color=C87A44&text_color=B9D6D3&icon_color=5EEAD4&disable_animations=true
+          path: assets/stats.svg
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate activity graph
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LOGIN: ${{ github.repository_owner }}
+          OUTPUT: assets/activity.svg
+        run: python3 .github/scripts/activity_graph.py
+
+      - name: Commit refreshed cards
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/stats.svg assets/activity.svg
+          git diff --staged --quiet || git commit -m "Refresh the generated stat cards"
+          git push
